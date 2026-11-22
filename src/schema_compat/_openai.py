@@ -272,7 +272,9 @@ class OpenAIStrictTransformer:
                     )
                 if optional:
                     # Property order, as OpenAI's own SDKs emit it.
-                    node["required"] = list(props) + [n for n in required if n not in props]
+                    node["required"] = list(props) + [
+                        n for n in required if not (isinstance(n, str) and n in props)
+                    ]
                 elif not isinstance(node.get("required"), list):
                     node["required"] = []
                     r.fix(

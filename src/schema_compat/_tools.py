@@ -41,13 +41,13 @@ def _code(target: str, rule: str) -> str:
 
 def name_is_valid(name: str, target: str) -> bool:
     pattern, _, _, _ = _NAME_RULES[_family(target)]
-    return bool(pattern.match(name))
+    return bool(pattern.fullmatch(name))  # fullmatch: '$' would accept a trailing newline
 
 
 def sanitize_name(name: str, target: str) -> str:
     """Rewrite ``name`` so ``target`` accepts it (deterministic)."""
     pattern, bad_chars, max_len, letter_first = _NAME_RULES[_family(target)]
-    if pattern.match(name):
+    if pattern.fullmatch(name):
         return name
     new = re.sub(bad_chars, "_", name) or "tool"
     if letter_first and not re.match(r"[A-Za-z_]", new):

@@ -533,7 +533,7 @@ class GeminiTransformer:
             )
         if path == "" and isinstance(node.get("properties"), dict):
             for name in node["properties"]:
-                if not PARAMETER_NAME.match(name):
+                if not PARAMETER_NAME.fullmatch(name):
                     r.problem(
                         "gemini.parameter_name",
                         child(path, "properties", name),

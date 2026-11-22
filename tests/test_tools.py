@@ -147,3 +147,8 @@ def test_null_schema_is_treated_as_missing() -> None:
     gemini = transform_tools([tool], "gemini")
     assert gemini.tools == [{"name": "t"}] and gemini.ok
     assert "gemini.null_schema@" in codes(gemini.changes)
+
+
+def test_trailing_newline_is_not_a_valid_name() -> None:
+    assert not name_is_valid("search\n", "openai")
+    assert sanitize_name("search\n", "openai") == "search_"
