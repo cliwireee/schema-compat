@@ -86,6 +86,10 @@ def unsupported_regex_features(pattern: str) -> list[str]:
     return sorted(set(found))
 
 
+def _ref_in(ref: Any, refs: frozenset[str]) -> bool:
+    return isinstance(ref, str) and ref in refs
+
+
 class AnthropicTransformer:
     """Non-strict tools accept JSON Schema (draft 2020-12); only the root is constrained."""
 
@@ -214,7 +218,7 @@ class AnthropicStrictTransformer:
             for entry in entries:
                 # `true` accepts everything: neutral in an allOf.
                 resolved = {} if entry is True else self._deref(entry, stack)
-                if isinstance(entry, dict) and entry.get("$ref") in self.cyclic:
+                if isinstance(entry, dict) and _ref_in(entry.get("$ref"), self.cyclic):
                     resolved = None  # merging a self-referencing definition never ends
                 merged = (
                     merge_all(merged, resolved)
@@ -264,7 +268,9 @@ class AnthropicStrictTransformer:
                 "only minItems 0 or 1 is supported; removed and added to the description",
                 lossy=True,
             )
-        if "format" in node and node["format"] not in SUPPORTED_FORMATS:
+        if "format" in node and (
+            not isinstance(node["format"], str) or node["format"] not in SUPPORTED_FORMATS
+        ):
             dropped["format"] = node.pop("format")
             r.fix(
                 "anthropic_strict.format",

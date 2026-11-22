@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from schema_compat import TARGETS, restore_arguments, transform_schema
+from schema_compat import TARGETS, restore_arguments, transform_schema, transform_tools
 
 COUNT = int(os.environ.get("SCHEMA_COMPAT_FUZZ", "400"))
 
@@ -137,3 +137,72 @@ def _sorted_required(node: Any) -> Any:
     if isinstance(node, list):
         return [_sorted_required(v) for v in node]
     return node
+
+
+# Junk values in every keyword position: nothing may raise.
+_JUNK_KEYS = [
+    "type",
+    "format",
+    "enum",
+    "const",
+    "$ref",
+    "items",
+    "prefixItems",
+    "properties",
+    "required",
+    "additionalProperties",
+    "anyOf",
+    "oneOf",
+    "allOf",
+    "not",
+    "minimum",
+    "minItems",
+    "pattern",
+    "nullable",
+    "description",
+    "$defs",
+    "default",
+    "examples",
+    "title",
+]
+_JUNK: list[Any] = [
+    {},
+    [],
+    [1],
+    {"a": 1},
+    1,
+    1.5,
+    -3,
+    True,
+    False,
+    None,
+    "x",
+    "",
+    "#",
+    "#/nope",
+    ["string", 1],
+    {"$ref": "#"},
+]
+
+
+def _mutate(node: Any, rng: random.Random, depth: int = 0) -> Any:
+    if isinstance(node, dict):
+        node = dict(node)
+        if rng.random() < 0.35:
+            node[rng.choice(_JUNK_KEYS)] = copy.deepcopy(rng.choice(_JUNK))
+        for key in list(node):
+            if rng.random() < 0.5 and depth < 4:
+                node[key] = _mutate(node[key], rng, depth + 1)
+    elif isinstance(node, list):
+        node = [_mutate(item, rng, depth + 1) for item in node]
+    return node
+
+
+@pytest.mark.parametrize("seed", range(COUNT))
+def test_junk_never_raises(seed: int) -> None:
+    rng = random.Random(seed + 10**6)
+    schema = _mutate(gen_root(rng), rng)
+    for target in TARGETS:
+        transform_schema(schema, target)
+        transform_tools([{"name": "t", "inputSchema": schema}], target)
+        restore_arguments({"x": "1", "p0": None, "a": [1, {"b": None}]}, schema, target)

@@ -129,6 +129,10 @@ _NUMERIC_FORMATS = frozenset({"float", "double", "int32", "int64"})
 PARAMETER_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 
 
+def _ref_in(ref: Any, refs: frozenset[str]) -> bool:
+    return isinstance(ref, str) and ref in refs
+
+
 def _type_name(value: Any) -> str | None:
     return value.lower() if isinstance(value, str) else None
 
@@ -211,7 +215,7 @@ class GeminiTransformer:
                     moved.add(key)
             if fmt is not None:
                 numeric = type_name in ("number", "integer")
-                if (fmt in _NUMERIC_FORMATS) == numeric and type_name in (
+                if (isinstance(fmt, str) and fmt in _NUMERIC_FORMATS) == numeric and type_name in (
                     "string",
                     "number",
                     "integer",
@@ -285,7 +289,7 @@ class GeminiTransformer:
                 for entry in entries:
                     # `true` accepts everything: neutral in an allOf.
                     resolved = {} if entry is True else self._deref(entry, stack)
-                    if isinstance(entry, dict) and entry.get("$ref") in self.cyclic:
+                    if isinstance(entry, dict) and _ref_in(entry.get("$ref"), self.cyclic):
                         resolved = None  # merging a self-referencing definition never ends
                     if merged is None or not isinstance(resolved, dict):
                         merged = None
@@ -392,7 +396,7 @@ class GeminiTransformer:
             elif len(rest) == 1:
                 base = {k: v for k, v in node.items() if k != "anyOf"}
                 resolved = self._deref(rest[0], stack)
-                if isinstance(rest[0], dict) and rest[0].get("$ref") in self.cyclic:
+                if isinstance(rest[0], dict) and _ref_in(rest[0].get("$ref"), self.cyclic):
                     resolved = None
                 collapsed = merge_all(base, resolved) if isinstance(resolved, dict) else None
                 if collapsed is not None:
