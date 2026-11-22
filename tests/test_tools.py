@@ -137,3 +137,13 @@ def test_gemini_json_schema_mode_is_not_checked() -> None:
 def test_unknown_target_rejected(target: str) -> None:
     with pytest.raises(ValueError):
         transform_tools([], target + "x")
+
+
+def test_null_schema_is_treated_as_missing() -> None:
+    tool = {"name": "t", "inputSchema": None}
+    anthropic = transform_tools([tool], "anthropic")
+    assert anthropic.tools == [{"name": "t", "input_schema": {"type": "object", "properties": {}}}]
+    assert anthropic.ok
+    gemini = transform_tools([tool], "gemini")
+    assert gemini.tools == [{"name": "t"}] and gemini.ok
+    assert "gemini.null_schema@" in codes(gemini.changes)

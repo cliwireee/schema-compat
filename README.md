@@ -187,7 +187,12 @@ reported on GitHub.
 - **Fuzzing:** randomised schemas through every target (20,000 during development, 400 per test
   run): no exceptions, the input never mutated, repaired schemas stable under a second pass,
   and both cross-checks above.
+- **Real production schemas:** the 149 tool schemas of GitHub's official MCP server
+  (`tests/realworld/`). As written, Gemini rejects 70 of them and OpenAI strict mode 143;
+  after repair 0 fail for OpenAI strict and 6 for Gemini (free-form objects Gemini cannot
+  express). Pinned as a regression test.
 - The README examples run as tests.
+- `scripts/live_check.py` sends repaired schemas to the real APIs (needs API keys).
 
 Not verified: live API calls (no provider keys are used), and limits that are documented
 neither in code nor in docs (for example OpenAI's schema size limits). Gemini's

@@ -133,7 +133,14 @@ def transform_tools(tools: list[Any], target: str) -> ToolsResult:
                 )
             used.add(new_name)
 
-        schema_key = next((k for k in _SCHEMA_KEYS if k in container), None)
+        # A null schema field means "no schema"; providers reject null there.
+        for key in _SCHEMA_KEYS:
+            if key in container and container[key] is None:
+                del new_container[key]
+                report.fix(_code(target, "null_schema"), "", f"{key} is null; removed")
+        schema_key = next(
+            (k for k in _SCHEMA_KEYS if k in container and container[k] is not None), None
+        )
         if schema_key == "parametersJsonSchema" and target == "gemini":
             report.problem(
                 "gemini.parameters_json_schema",
