@@ -42,3 +42,9 @@ def test_case(case: dict[str, Any]) -> None:
     assert keys(result.issues) == set(case["issues"])
     expected_ok = case.get("ok", not case["issues"])
     assert result.ok is expected_ok
+
+
+def test_root_type_null_is_replaced() -> None:
+    for target in ("anthropic", "openai", "openai-strict", "anthropic-strict"):
+        result = transform_schema({"type": None, "properties": {}}, target)
+        assert result.schema["type"] == "object", target

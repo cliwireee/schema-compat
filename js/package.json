@@ -1,0 +1,71 @@
+{
+  "name": "schema-compat",
+  "version": "0.1.0",
+  "description": "Make one tool/function JSON schema work with Anthropic, OpenAI (incl. strict mode) and Gemini: check, repair, and restore arguments.",
+  "keywords": [
+    "json-schema",
+    "function-calling",
+    "tool-calling",
+    "llm",
+    "mcp",
+    "gemini",
+    "openai",
+    "anthropic",
+    "structured-outputs"
+  ],
+  "license": "MIT",
+  "author": "schema-compat contributors",
+  "homepage": "https://github.com/cliwireee/schema-compat#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cliwireee/schema-compat.git",
+    "directory": "js"
+  },
+  "bugs": {
+    "url": "https://github.com/cliwireee/schema-compat/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/types-cjs/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "schema-compat": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup && node scripts/build-types.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@types/node": "^26.6.6",
+    "@typescript/typescript6": "^6.0.2",
+    "publint": "^0.3.25",
+    "tsup": "^9.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}

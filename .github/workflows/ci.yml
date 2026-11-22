@@ -35,6 +35,11 @@ jobs:
       # that the repaired schemas are validated against.
       - run: pip install -e ".[dev,crosscheck]"
       - run: pytest --cov=schema_compat --cov-report=term-missing
+      - name: Parity corpus is up to date
+        if: matrix.python-version == '3.13'
+        run: |
+          python tests/parity/generate.py
+          git diff --exit-code -- tests/parity/corpus.json.gz
 
   fuzz:
     runs-on: ubuntu-latest
@@ -47,6 +52,35 @@ jobs:
       - run: pytest tests/test_fuzz.py -q
         env:
           SCHEMA_COMPAT_FUZZ: "10000"
+
+  js:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20", "22", "24"]
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx attw --pack .
+      - run: npx publint
+      - name: Smoke-test the packed package
+        run: |
+          npm pack
+          mkdir /tmp/smoke && cd /tmp/smoke && npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE"/js/schema-compat-*.tgz
+          node -e "const s = require('schema-compat'); if (s.transformSchema({}, 'openai').schema.type !== 'object') process.exit(1)"
+          node --input-type=module -e "import { TARGETS } from 'schema-compat'; if (TARGETS.length !== 5) process.exit(1)"
+          npx schema-compat --version
 
   package:
     runs-on: ubuntu-latest

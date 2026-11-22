@@ -43,3 +43,28 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # npm: Trusted Publishing (OIDC) with provenance. One-time setup on npmjs.com, after the
+  # package exists: package settings -> Trusted publishing -> GitHub Actions with
+  #   owner: cliwireee, repository: schema-compat, workflow: release.yml, environment: npm
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: Tag must match the npm version
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: npm ci
+      - run: npm run typecheck && npm test
+      - run: npm publish --provenance --access public

@@ -19,7 +19,8 @@ def fix_root_object(node: Any, report: Report, family: str) -> Any:
     type_value = node.get("type")
     if type_value is None:
         report.fix(f"{family}.root_type", "", 'the root schema needs type: "object"; added')
-        return {"type": "object", **node}
+        # A JSON null "type" must not overwrite the added one.
+        return {"type": "object", **{k: v for k, v in node.items() if k != "type"}}
     if type_value == "object":
         return node
     if isinstance(type_value, list) and "object" in type_value:
