@@ -27,7 +27,11 @@ Zero runtime dependencies. Python 3.10+.
 
 ## Install
 
-From GitHub (until it is published on PyPI):
+```bash
+pip install schema-compat
+```
+
+Or the latest development version:
 
 ```bash
 pip install "schema-compat @ git+https://github.com/cliwireee/schema-compat"
