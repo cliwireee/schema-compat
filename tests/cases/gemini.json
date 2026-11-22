@@ -1,0 +1,754 @@
+[
+  {
+    "name": "zod / MCP TypeScript SDK output: $schema, additionalProperties, exclusiveMinimum",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path"
+        },
+        "limit": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "{exclusiveMinimum: 0}"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "changes": [
+      "gemini.unsupported_keyword@/properties/limit/exclusiveMinimum",
+      "gemini.additional_properties@/additionalProperties",
+      "gemini.unsupported_keyword@/$schema"
+    ],
+    "lossy": [
+      "gemini.unsupported_keyword@/properties/limit/exclusiveMinimum",
+      "gemini.additional_properties@/additionalProperties"
+    ],
+    "issues": []
+  },
+  {
+    "name": "pydantic Optional[int] = None: anyOf with null becomes nullable",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N"
+        }
+      },
+      "required": []
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "integer",
+          "nullable": true,
+          "default": null,
+          "title": "N"
+        }
+      },
+      "required": []
+    },
+    "changes": [
+      "gemini.null_branch@/properties/n/anyOf"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "type array with several types and an enum is split into anyOf branches",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ],
+          "enum": [
+            "a",
+            1,
+            null
+          ],
+          "minLength": 1
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "nullable": true,
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "enum": [
+                "a"
+              ]
+            },
+            {
+              "type": "number",
+              "enum": [
+                "1"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "changes": [
+      "gemini.type_array@/properties/v/type",
+      "gemini.enum_stringified@/properties/v/anyOf/1/enum"
+    ],
+    "lossy": [
+      "gemini.enum_stringified@/properties/v/anyOf/1/enum"
+    ],
+    "issues": []
+  },
+  {
+    "name": "type [string, null] becomes nullable",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": "string",
+          "nullable": true
+        }
+      }
+    },
+    "changes": [
+      "gemini.type_array@/properties/s/type"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "integer const becomes a string enum (as google-genai does for Literal/IntEnum)",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "const": 2
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "enum": [
+            "2"
+          ]
+        }
+      }
+    },
+    "changes": [
+      "gemini.const_to_enum@/properties/version/const",
+      "gemini.enum_stringified@/properties/version/enum"
+    ],
+    "lossy": [
+      "gemini.enum_stringified@/properties/version/enum"
+    ],
+    "issues": []
+  },
+  {
+    "name": "null inside enum becomes nullable",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": "string",
+          "enum": [
+            "a",
+            null
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": "string",
+          "enum": [
+            "a"
+          ],
+          "nullable": true
+        }
+      }
+    },
+    "changes": [
+      "gemini.enum_null@/properties/s/enum"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "empty enum cannot be repaired",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "string",
+          "enum": []
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "string",
+          "enum": []
+        }
+      }
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "gemini.empty_enum@/properties/x/enum"
+    ]
+  },
+  {
+    "name": "map (additionalProperties schema) leaves an empty OBJECT Gemini rejects",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "headers"
+      ]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "headers": {
+          "type": "object",
+          "description": "{additionalProperties: {\"type\": \"string\"}}"
+        }
+      },
+      "required": [
+        "headers"
+      ]
+    },
+    "changes": [
+      "gemini.additional_properties@/properties/headers/additionalProperties"
+    ],
+    "lossy": [
+      "gemini.additional_properties@/properties/headers/additionalProperties"
+    ],
+    "issues": [
+      "gemini.empty_object@/properties/headers"
+    ]
+  },
+  {
+    "name": "array without items",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array"
+        }
+      }
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "gemini.array_without_items@/properties/ids"
+    ]
+  },
+  {
+    "name": "$ref with a description sibling is inlined; the sibling description wins",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "$ref": "#/$defs/User",
+          "description": "Repo owner"
+        }
+      },
+      "$defs": {
+        "User": {
+          "type": "object",
+          "properties": {
+            "login": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "login"
+          ],
+          "description": "A user"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "description": "Repo owner",
+          "type": "object",
+          "properties": {
+            "login": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "login"
+          ]
+        }
+      }
+    },
+    "changes": [
+      "gemini.ref_inlined@/properties/owner",
+      "gemini.unsupported_keyword@/$defs"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "recursive $ref cannot be inlined: unrepairable (google-genai Schema has no $ref/$defs)",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "tree": {
+          "$ref": "#/$defs/Node"
+        }
+      },
+      "$defs": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Node"
+              }
+            }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "tree": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Node"
+              }
+            }
+          }
+        }
+      },
+      "$defs": {
+        "Node": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Node"
+              }
+            }
+          }
+        }
+      }
+    },
+    "changes": [
+      "gemini.ref_inlined@/properties/tree"
+    ],
+    "lossy": [],
+    "issues": [
+      "gemini.recursive_ref@/properties/tree/properties/children/items"
+    ]
+  },
+  {
+    "name": "allOf with a $ref is merged into one schema",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "p": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Base"
+            },
+            {
+              "properties": {
+                "extra": {
+                  "type": "boolean"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "definitions": {
+        "Base": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "p": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "extra": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      }
+    },
+    "changes": [
+      "gemini.allof_merged@/properties/p/allOf",
+      "gemini.unsupported_keyword@/definitions"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "allOf with conflicting types cannot be merged",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "p": {
+          "allOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "p": {
+          "allOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        }
+      }
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "gemini.allof_unmergeable@/properties/p/allOf"
+    ]
+  },
+  {
+    "name": "top-level parameter names must match Gemini's pattern",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "user-id": {
+          "type": "string"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "user-id": {
+          "type": "string"
+        }
+      }
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "gemini.parameter_name@/properties/user-id"
+    ]
+  },
+  {
+    "name": "prefixItems tuple becomes items anyOf",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "minItems": 2
+        }
+      }
+    },
+    "changes": [
+      "gemini.tuple_items@/properties/point"
+    ],
+    "lossy": [
+      "gemini.tuple_items@/properties/point"
+    ],
+    "issues": []
+  },
+  {
+    "name": "oneOf becomes anyOf",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        }
+      }
+    },
+    "changes": [
+      "gemini.oneof_to_anyof@/properties/id/oneOf"
+    ],
+    "lossy": [
+      "gemini.oneof_to_anyof@/properties/id/oneOf"
+    ],
+    "issues": []
+  },
+  {
+    "name": "root without properties (tool without arguments)",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {}
+    },
+    "output": {
+      "type": "object",
+      "properties": {}
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "gemini.empty_object@"
+    ]
+  },
+  {
+    "name": "boolean true schema and type null",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "anything": true,
+        "nothing": {
+          "type": "null"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "anything": {},
+        "nothing": {
+          "nullable": true
+        }
+      }
+    },
+    "changes": [
+      "gemini.boolean_schema@/properties/anything",
+      "gemini.type_null@/properties/nothing/type"
+    ],
+    "lossy": [
+      "gemini.type_null@/properties/nothing/type"
+    ],
+    "issues": []
+  },
+  {
+    "name": "examples becomes example; propertyNames/uniqueItems dropped into the description",
+    "target": "gemini",
+    "input": {
+      "type": "object",
+      "properties": {
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "examples": [
+            [
+              "a",
+              "b"
+            ]
+          ],
+          "description": "Tags"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "example": [
+            "a",
+            "b"
+          ],
+          "description": "Tags\n\n{uniqueItems: true}"
+        }
+      }
+    },
+    "changes": [
+      "gemini.unsupported_keyword@/properties/tags/uniqueItems",
+      "gemini.unsupported_keyword@/properties/tags/examples"
+    ],
+    "lossy": [
+      "gemini.unsupported_keyword@/properties/tags/uniqueItems"
+    ],
+    "issues": []
+  }
+]

@@ -1,0 +1,405 @@
+[
+  {
+    "name": "non-strict: root without type (\"got 'type: None'\") gets type object",
+    "target": "openai",
+    "input": {
+      "properties": {
+        "q": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "q"
+      ]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "q"
+      ]
+    },
+    "changes": [
+      "openai.root_type@"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "non-strict: empty schema gets type object",
+    "target": "openai",
+    "input": {},
+    "output": {
+      "type": "object"
+    },
+    "changes": [
+      "openai.root_type@"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "non-strict: root type list with object is narrowed",
+    "target": "openai",
+    "input": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {}
+    },
+    "output": {
+      "type": "object",
+      "properties": {}
+    },
+    "changes": [
+      "openai.root_type@/type"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "strict: optional properties become required and nullable; additionalProperties added",
+    "target": "openai-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": "string"
+        },
+        "n": {
+          "type": "integer"
+        },
+        "e": {
+          "enum": [
+            "a",
+            "b"
+          ]
+        },
+        "r": {
+          "$ref": "#/$defs/X"
+        },
+        "already": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "q"
+      ],
+      "$defs": {
+        "X": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "a"
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": "string"
+        },
+        "n": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "e": {
+          "enum": [
+            "a",
+            "b",
+            null
+          ]
+        },
+        "r": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/X"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "already": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "q",
+        "n",
+        "e",
+        "r",
+        "already"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "X": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "a"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "changes": [
+      "openai_strict.optional_property@/properties/n",
+      "openai_strict.optional_property@/properties/e",
+      "openai_strict.optional_property@/properties/r",
+      "openai_strict.optional_property@/properties/already",
+      "openai_strict.additional_properties@",
+      "openai_strict.additional_properties@/$defs/X"
+    ],
+    "lossy": [
+      "openai_strict.optional_property@/properties/n",
+      "openai_strict.optional_property@/properties/e",
+      "openai_strict.optional_property@/properties/r"
+    ],
+    "issues": []
+  },
+  {
+    "name": "strict: $ref with sibling keywords is inlined",
+    "target": "openai-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "u": {
+          "$ref": "#/$defs/U",
+          "description": "The user"
+        }
+      },
+      "required": [
+        "u"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "U": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "u": {
+          "description": "The user",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "u"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "U": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "changes": [
+      "openai_strict.ref_siblings@/properties/u"
+    ],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "strict: maps cannot be expressed",
+    "target": "openai-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "m": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "m"
+      ],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "m": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "m"
+      ],
+      "additionalProperties": false
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "openai_strict.additional_properties@/properties/m/additionalProperties"
+    ]
+  },
+  {
+    "name": "strict: root anyOf is rejected",
+    "target": "openai-strict",
+    "input": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "output": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "openai_strict.root_anyof@"
+    ]
+  },
+  {
+    "name": "strict: oneOf becomes anyOf, default null removed, untyped object gets type",
+    "target": "openai-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "opts": {
+          "properties": {
+            "x": {
+              "type": "string",
+              "default": null
+            }
+          },
+          "required": [
+            "x"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "opts"
+      ]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "opts": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "x"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "opts"
+      ],
+      "additionalProperties": false
+    },
+    "changes": [
+      "openai_strict.oneof@/properties/id/oneOf",
+      "openai_strict.object_type@/properties/opts/type",
+      "openai_strict.null_default@/properties/opts/properties/x/default",
+      "openai_strict.additional_properties@/properties/opts",
+      "openai_strict.additional_properties@"
+    ],
+    "lossy": [
+      "openai_strict.oneof@/properties/id/oneOf"
+    ],
+    "issues": []
+  }
+]

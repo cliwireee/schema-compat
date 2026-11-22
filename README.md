@@ -1,0 +1,208 @@
+# schema-compat
+
+**One tool schema, every provider.** Check and repair JSON Schemas for tool/function calling so
+Anthropic, OpenAI (including strict mode) and Gemini all accept them — then map the model's
+arguments back to what your code expects.
+
+The same MCP server, Pydantic model or Zod schema produces a schema one provider accepts and
+another rejects with errors like these:
+
+```text
+Invalid JSON payload received. Unknown name "exclusiveMinimum" ...              (Gemini)
+... parameters.properties: should be non-empty for OBJECT type                  (Gemini)
+Invalid JSON payload received. ... Proto field is not repeating                 (Gemini, type arrays)
+'additionalProperties' is required to be supplied and to be false               (OpenAI strict)
+```
+
+Gateways, agent frameworks and MCP clients each patch this by hand. `schema-compat` is the
+shared, tested, dependency-free version of that patch:
+
+- **check** — every problem, with a JSON Pointer and whether it can be repaired
+- **transform** — a repaired schema (the input is never mutated) and a list of every change
+- **restore** — undo the reversible repairs on the arguments the model sends back
+- **tools** — MCP, Anthropic, OpenAI and Gemini tool shapes; invalid names renamed, with a map back
+- **CLI + pre-commit** — gate MCP servers and tool definitions in CI
+
+Zero runtime dependencies. Python 3.10+.
+
+## Install
+
+From GitHub (until it is published on PyPI):
+
+```bash
+pip install "schema-compat @ git+https://github.com/cliwireee/schema-compat"
+```
+
+## Quick start
+
+```python
+from schema_compat import transform_schema, restore_arguments
+
+schema = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string", "minLength": 1},
+        "limit": {"type": ["integer", "null"], "exclusiveMinimum": 0},
+        "mode": {"enum": [1, 2, 3]},
+    },
+    "required": ["query"],
+    "additionalProperties": False,
+    "$schema": "http://json-schema.org/draft-07/schema#",
+}
+
+result = transform_schema(schema, "gemini")
+assert result.ok
+assert result.schema == {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string", "minLength": 1},
+        "limit": {"type": "integer", "nullable": True, "description": "{exclusiveMinimum: 0}"},
+        "mode": {"enum": ["1", "2", "3"]},
+    },
+    "required": ["query"],
+}
+for change in result.changes:
+    print(change.code, change.path, "(lossy)" if change.lossy else "")
+
+# Gemini sends the enum value back as a string: restore the original integer.
+assert restore_arguments({"query": "x", "mode": "2"}, schema, "gemini") == {"query": "x", "mode": 2}
+```
+
+OpenAI strict mode requires every property in `required`, so optional properties become
+required-and-nullable; `restore_arguments` removes the `null`s again:
+
+```python
+from schema_compat import transform_schema, restore_arguments
+
+schema = {
+    "type": "object",
+    "properties": {"q": {"type": "string"}, "page": {"type": "integer"}},
+    "required": ["q"],
+}
+strict = transform_schema(schema, "openai-strict").schema
+assert strict == {
+    "type": "object",
+    "properties": {"q": {"type": "string"}, "page": {"type": ["integer", "null"]}},
+    "required": ["q", "page"],
+    "additionalProperties": False,
+}
+assert restore_arguments({"q": "x", "page": None}, schema, "openai-strict") == {"q": "x"}
+```
+
+Whole tool lists (here an MCP `tools/list` result) keep their shape; names are fixed per provider:
+
+```python
+from schema_compat import transform_tools
+
+tools = [
+    {"name": "fs.read_file", "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}}},
+    {"name": "ping", "inputSchema": {"type": "object", "properties": {}}},
+]
+openai = transform_tools(tools, "openai")
+assert openai.tools[0]["name"] == "fs_read_file"
+assert openai.name_map == {"fs_read_file": "fs.read_file"}  # route tool calls back
+
+gemini = transform_tools(tools, "gemini")
+assert gemini.tools[1] == {"name": "ping"}  # Gemini rejects an empty OBJECT: parameters omitted
+```
+
+## Targets
+
+| Target | For | What is enforced |
+|---|---|---|
+| `anthropic` | Claude tools (`input_schema`) | JSON Schema draft 2020-12; root `type: "object"`; tool name |
+| `anthropic-strict` | Claude strict tool use (`strict: true`) and JSON outputs | the documented structured-outputs subset and per-request limits |
+| `openai` | OpenAI function calling (`parameters`) | root `type: "object"`; tool name (≤ 64 chars) |
+| `openai-strict` | OpenAI Structured Outputs / `strict: true` | the strict rules OpenAI's own SDKs apply |
+| `gemini` | Gemini `functionDeclarations[].parameters` | the OpenAPI 3.0 subset Google's SDK accepts |
+
+`check_tools` / `transform_tools` work on lists of tools and add tool-level rules (names,
+duplicates, missing schemas, Anthropic's per-request strict limits). `check_schema` /
+`transform_schema` work on one parameters schema.
+
+## CLI
+
+```bash
+schema-compat check tools.json                       # all targets
+schema-compat check -t gemini -t openai-strict tools.json --format github
+schema-compat fix -t gemini tools.json -o tools.gemini.json --name-map names.json
+cat tools.json | schema-compat check - -t openai     # stdin
+```
+
+Input: a JSON schema, one tool, a list of tools, or `{"tools": [...]}` (an MCP `tools/list`
+result). `check` exits 1 on errors (`--fail-on warning` to include warnings) and 2 on unreadable
+input; `--format github` emits GitHub Actions annotations, `--format json` is machine-readable.
+`fix` writes the repaired file and exits 1 if errors remain that cannot be repaired.
+
+### pre-commit
+
+```yaml
+repos:
+  - repo: https://github.com/cliwireee/schema-compat
+    rev: v0.1.0
+    hooks:
+      - id: schema-compat
+        files: ^tools/.*\.json$
+        args: [-t, gemini, -t, openai-strict]
+```
+
+## What "lossy" means
+
+A change is **lossy** when the repaired schema accepts some value the original rejects: a
+dropped `exclusiveMinimum`, `oneOf` → `anyOf`, enum numbers sent as strings. Dropped constraints
+are appended to the description (`{exclusiveMinimum: 0}`) — the convention Anthropic's SDK uses —
+so the model can still follow them; validate arguments against your original schema if they
+matter. `restore_arguments` reverses the reversible ones: stringified Gemini enum/const values,
+and OpenAI-strict `null`s for originally optional properties (a `null` is kept when the original
+property itself allowed `null`, since the two cannot be told apart).
+
+## Rules and their sources
+
+Every rule comes from provider documentation, the providers' own SDK code, or API errors
+reported on GitHub.
+
+| Codes | Target | Rule | Source |
+|---|---|---|---|
+| `*.tool_name` | all | Anthropic `^[a-zA-Z0-9_-]{1,128}$`; OpenAI `a-z A-Z 0-9 _ -`, ≤ 64; Gemini starts with a letter or `_`, may contain `. : -`, ≤ 128 | Anthropic tool-use docs; `openai` `FunctionDefinition`; `google-genai` `FunctionDeclaration` |
+| `*.root_type`, `*.root_not_object` | all | the parameters root is `type: "object"` | Anthropic SDK `InputSchemaTyped`; OpenAI "must be a JSON Schema of 'type: \"object\"'" |
+| `anthropic_strict.*` | anthropic-strict | `additionalProperties: false`; no recursion, `oneOf`, `not`, external `$ref`, complex enums, numeric/string constraints, array constraints beyond `minItems` 0/1, unsupported formats or regex features; `anyOf` not next to `type`/`properties`; ≤ 20 strict tools, 24 optional and 16 union-typed parameters per request | [Structured outputs: JSON Schema limitations and complexity limits](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) |
+| `openai_strict.*` | openai-strict | `additionalProperties: false`; every property required (optional → nullable); `$ref` without sibling keywords; `oneOf` → `anyOf`; `allOf` merged; `default: null` removed; the root is a plain object, not `anyOf` | `openai` `lib/_pydantic.to_strict_json_schema`; `openai-agents` `strict_schema.ensure_strict_json_schema` |
+| `gemini.unsupported_keyword` | gemini | only the fields of `google-genai` `types.Schema`: `type format title description nullable enum items minItems maxItems properties required minProperties maxProperties minLength maxLength pattern example anyOf propertyOrdering default minimum maximum` | `google-genai` `types.Schema` (`extra='forbid'`); "Unknown name" errors |
+| `gemini.ref_inlined`, `gemini.recursive_ref` | gemini | `$ref`/`$defs` are inlined; recursion cannot be | `google-genai` `process_schema` |
+| `gemini.type_array`, `gemini.type_null`, `gemini.null_branch` | gemini | no type arrays; `null` expressed with `nullable` | `google-genai` `handle_null_fields`; "Proto field is not repeating" |
+| `gemini.const_to_enum`, `gemini.enum_stringified`, `gemini.empty_enum` | gemini | `const` → `enum`; enum values are strings; enums are non-empty | `google-genai` `process_schema`, `_process_enum`; "only allowed for STRING type" |
+| `gemini.additional_properties` | gemini | rejected by the Gemini Developer API | `google-genai` `_raise_for_unsupported_mldev_properties`; "Unknown name additionalProperties" |
+| `gemini.empty_object`, `gemini.empty_parameters` | gemini | an OBJECT needs properties; a tool without arguments omits `parameters` | "should be non-empty for OBJECT type"; `FunctionDeclaration.parameters` docs |
+| `gemini.array_without_items`, `gemini.tuple_items` | gemini | an ARRAY needs `items`; `prefixItems` → `items: anyOf` | "items: missing field" |
+| `gemini.parameter_name` | gemini | top-level parameter names `^[A-Za-z_][A-Za-z0-9_]{0,63}$` | `FunctionDeclaration.parameters` docs |
+
+## How it is verified
+
+- A language-neutral case corpus (`tests/cases/*.json`) with hand-written expected output for
+  real-world shapes: Zod / MCP TypeScript SDK output, Pydantic `Optional`, `$ref`, maps,
+  recursion, tuples, conflicting `allOf`.
+- **Cross-validation against the providers' own code:** every repaired Gemini schema must
+  validate as `google-genai` `types.Schema` (unknown fields forbidden), and every repaired
+  OpenAI-strict schema must be a fixed point of `openai-agents`' strict conversion.
+- **Fuzzing:** randomised schemas through every target (20,000 during development, 400 per test
+  run): no exceptions, the input never mutated, repaired schemas stable under a second pass,
+  and both cross-checks above.
+- The README examples run as tests.
+
+Not verified: live API calls (no provider keys are used), and limits that are documented
+neither in code nor in docs (for example OpenAI's schema size limits). Gemini's
+`parametersJsonSchema` mode is reported as unchecked.
+
+## Development
+
+```bash
+pip install -e ".[dev,crosscheck]"
+pytest
+ruff check src tests && ruff format --check src tests
+mypy
+SCHEMA_COMPAT_FUZZ=20000 pytest tests/test_fuzz.py
+```
+
+## License
+
+MIT

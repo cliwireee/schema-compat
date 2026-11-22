@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "schema-compat"
+dynamic = ["version"]
+description = "Make one tool/function JSON schema work with Anthropic, OpenAI (incl. strict mode) and Gemini: check, repair, and restore arguments."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "schema-compat contributors" }]
+keywords = [
+    "json-schema",
+    "function-calling",
+    "tool-calling",
+    "llm",
+    "mcp",
+    "gemini",
+    "openai",
+    "anthropic",
+    "structured-outputs",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+# Official SDKs used only by the cross-validation tests.
+crosscheck = [
+    "google-genai>=1.0",
+    "openai-agents>=0.2",
+]
+
+[project.scripts]
+schema-compat = "schema_compat.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/cliwireee/schema-compat"
+Issues = "https://github.com/cliwireee/schema-compat/issues"
+
+[tool.hatch.version]
+path = "src/schema_compat/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/schema_compat"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src/schema_compat"]

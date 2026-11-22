@@ -1,0 +1,259 @@
+[
+  {
+    "name": "non-strict: root without type gets type object",
+    "target": "anthropic",
+    "input": {"properties": {"a": {"type": "string", "minLength": 3}}},
+    "output": {"type": "object", "properties": {"a": {"type": "string", "minLength": 3}}},
+    "changes": ["anthropic.root_type@"],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "non-strict: root type string is rejected",
+    "target": "anthropic",
+    "input": {"type": "string"},
+    "output": {"type": "string"},
+    "changes": [],
+    "lossy": [],
+    "issues": ["anthropic.root_not_object@/type"]
+  },
+  {
+    "name": "non-strict: rich JSON Schema is accepted untouched",
+    "target": "anthropic",
+    "input": {
+      "type": "object",
+      "properties": {
+        "n": {"type": "integer", "minimum": 1, "exclusiveMaximum": 10},
+        "u": {"oneOf": [{"type": "string"}, {"type": "number"}]},
+        "m": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "$defs": {"X": {"type": "string"}}
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "n": {"type": "integer", "minimum": 1, "exclusiveMaximum": 10},
+        "u": {"oneOf": [{"type": "string"}, {"type": "number"}]},
+        "m": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "$defs": {"X": {"type": "string"}}
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "strict: numeric constraints move into the description; additionalProperties added",
+    "target": "anthropic-strict",
+    "input": {
+      "type": "object",
+      "properties": {"n": {"type": "integer", "minimum": 1, "maximum": 10, "description": "Count"}},
+      "required": ["n"]
+    },
+    "output": {
+      "type": "object",
+      "properties": {"n": {"type": "integer", "description": "Count\n\n{minimum: 1, maximum: 10}"}},
+      "required": ["n"],
+      "additionalProperties": false
+    },
+    "changes": [
+      "anthropic_strict.unsupported_constraint@/properties/n/minimum",
+      "anthropic_strict.unsupported_constraint@/properties/n/maximum",
+      "anthropic_strict.additional_properties@"
+    ],
+    "lossy": [
+      "anthropic_strict.unsupported_constraint@/properties/n/minimum",
+      "anthropic_strict.unsupported_constraint@/properties/n/maximum"
+    ],
+    "issues": []
+  },
+  {
+    "name": "strict: anyOf next to type is distributed into the branches",
+    "target": "anthropic-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "string",
+          "anyOf": [{"format": "email"}, {"format": "uri"}],
+          "description": "Contact"
+        }
+      },
+      "required": ["v"],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "description": "Contact",
+          "anyOf": [{"type": "string", "format": "email"}, {"type": "string", "format": "uri"}]
+        }
+      },
+      "required": ["v"],
+      "additionalProperties": false
+    },
+    "changes": ["anthropic_strict.anyof_siblings@/properties/v/anyOf"],
+    "lossy": [],
+    "issues": []
+  },
+  {
+    "name": "strict: recursive schemas are not supported",
+    "target": "anthropic-strict",
+    "input": {
+      "type": "object",
+      "properties": {"node": {"$ref": "#/$defs/N"}},
+      "required": ["node"],
+      "additionalProperties": false,
+      "$defs": {
+        "N": {
+          "type": "object",
+          "properties": {"next": {"$ref": "#/$defs/N"}},
+          "required": ["next"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {"node": {"$ref": "#/$defs/N"}},
+      "required": ["node"],
+      "additionalProperties": false,
+      "$defs": {
+        "N": {
+          "type": "object",
+          "properties": {"next": {"$ref": "#/$defs/N"}},
+          "required": ["next"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": ["anthropic_strict.recursive_schema@/$defs/N/properties/next"]
+  },
+  {
+    "name": "strict: lookahead regex, unsupported format, minItems > 1, maxItems",
+    "target": "anthropic-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "pw": {"type": "string", "pattern": "^(?=.*\\d).{8,}$"},
+        "zip": {"type": "string", "pattern": "^[0-9]{5}$"},
+        "id": {"type": "string", "format": "custom-id"},
+        "when": {"type": "string", "format": "date-time"},
+        "xs": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 5},
+        "ys": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+      },
+      "required": ["pw", "zip", "id", "when", "xs", "ys"],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "pw": {"type": "string", "description": "{pattern: \"^(?=.*\\\\d).{8,}$\"}"},
+        "zip": {"type": "string", "pattern": "^[0-9]{5}$"},
+        "id": {"type": "string", "description": "{format: \"custom-id\"}"},
+        "when": {"type": "string", "format": "date-time"},
+        "xs": {"type": "array", "items": {"type": "string"}, "description": "{maxItems: 5, minItems: 2}"},
+        "ys": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+      },
+      "required": ["pw", "zip", "id", "when", "xs", "ys"],
+      "additionalProperties": false
+    },
+    "changes": [
+      "anthropic_strict.pattern@/properties/pw/pattern",
+      "anthropic_strict.format@/properties/id/format",
+      "anthropic_strict.unsupported_constraint@/properties/xs/maxItems",
+      "anthropic_strict.unsupported_constraint@/properties/xs/minItems"
+    ],
+    "lossy": [
+      "anthropic_strict.pattern@/properties/pw/pattern",
+      "anthropic_strict.format@/properties/id/format",
+      "anthropic_strict.unsupported_constraint@/properties/xs/maxItems",
+      "anthropic_strict.unsupported_constraint@/properties/xs/minItems"
+    ],
+    "issues": []
+  },
+  {
+    "name": "strict: maps cannot be expressed",
+    "target": "anthropic-strict",
+    "input": {
+      "type": "object",
+      "properties": {"m": {"type": "object", "additionalProperties": {"type": "string"}}},
+      "required": ["m"],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {"m": {"type": "object", "additionalProperties": {"type": "string"}}},
+      "required": ["m"],
+      "additionalProperties": false
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": [
+      "anthropic_strict.additional_properties@/properties/m/additionalProperties",
+      "anthropic_strict.empty_object@/properties/m"
+    ]
+  },
+  {
+    "name": "strict: oneOf becomes anyOf, not is dropped",
+    "target": "anthropic-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "v": {"oneOf": [{"type": "string"}, {"type": "integer"}]},
+        "w": {"type": "string", "not": {"enum": ["root"]}}
+      },
+      "required": ["v", "w"],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "v": {"anyOf": [{"type": "string"}, {"type": "integer"}]},
+        "w": {"type": "string", "description": "{not: {\"enum\": [\"root\"]}}"}
+      },
+      "required": ["v", "w"],
+      "additionalProperties": false
+    },
+    "changes": ["anthropic_strict.oneof@/properties/v/oneOf", "anthropic_strict.not@/properties/w/not"],
+    "lossy": ["anthropic_strict.oneof@/properties/v/oneOf", "anthropic_strict.not@/properties/w/not"],
+    "issues": []
+  },
+  {
+    "name": "strict: complex enum values and external refs",
+    "target": "anthropic-strict",
+    "input": {
+      "type": "object",
+      "properties": {
+        "e": {"enum": [{"a": 1}, "x"]},
+        "r": {"$ref": "https://example.com/schema.json"}
+      },
+      "required": ["e", "r"],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "e": {"enum": [{"a": 1}, "x"]},
+        "r": {"$ref": "https://example.com/schema.json"}
+      },
+      "required": ["e", "r"],
+      "additionalProperties": false
+    },
+    "changes": [],
+    "lossy": [],
+    "issues": ["anthropic_strict.complex_enum@/properties/e/enum", "anthropic_strict.external_ref@/properties/r/$ref"]
+  },
+  {
+    "name": "strict: root anyOf is not an object",
+    "target": "anthropic-strict",
+    "input": {"anyOf": [{"type": "object", "properties": {"a": {"type": "string"}}}, {"type": "object"}]},
+    "output": {"anyOf": [{"type": "object", "properties": {"a": {"type": "string"}}}, {"type": "object"}]},
+    "changes": [],
+    "lossy": [],
+    "issues": ["anthropic_strict.root_not_object@"]
+  }
+]

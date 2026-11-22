@@ -1,0 +1,7 @@
+- id: schema-compat
+  name: schema-compat
+  description: Check tool/function JSON schemas for Anthropic, OpenAI and Gemini compatibility.
+  entry: schema-compat check
+  language: python
+  types: [json]
+  # Restrict with `files:` and choose providers with `args: [-t, gemini, -t, openai-strict]`.
